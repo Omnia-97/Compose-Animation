@@ -116,28 +116,24 @@ import kotlin.math.roundToInt
 private enum class TabPage {
     Home, Work
 }
+
 @Composable
 fun Home() {
-    // String resources.
+
     val allTasks = stringArrayResource(R.array.tasks)
     val allTopics = stringArrayResource(R.array.topics).toList()
 
-    // The currently selected tab.
+
     var tabPage by remember { mutableStateOf(TabPage.Home) }
 
-    // True if the whether data is currently loading.
     var weatherLoading by remember { mutableStateOf(false) }
-
-    // Holds all the tasks currently shown on the task list.
     val tasks = remember { mutableStateListOf(*allTasks) }
 
-    // Holds the topic that is currently expanded to show its body.
     var expandedTopic by remember { mutableStateOf<String?>(null) }
 
-    // True if the message about the edit feature is shown.
     var editMessageShown by remember { mutableStateOf(false) }
 
-    // Simulates loading weather data. This takes 3 seconds.
+
     suspend fun loadWeather() {
         if (!weatherLoading) {
             weatherLoading = true
@@ -155,20 +151,20 @@ fun Home() {
         }
     }
 
-    // Load the weather at the initial composition.
+
     LaunchedEffect(Unit) {
         loadWeather()
     }
 
     val lazyListState = rememberLazyListState()
 
-    // The background color. The value is changed by the current tab.
+
     val backgroundColor by animateColorAsState(
         if (tabPage == TabPage.Home) Seashell else GreenLight,
         label = "background color"
     )
 
-    // The coroutine scope for event handlers calling suspend functions.
+
     val coroutineScope = rememberCoroutineScope()
     Scaffold(
         topBar = {
@@ -330,9 +326,11 @@ private fun EditMessage(shown: Boolean) {
 @Composable
 private fun LazyListState.isScrollingUp(): Boolean {
     var previousIndex by remember(this) {
-        mutableIntStateOf(firstVisibleItemIndex) }
+        mutableIntStateOf(firstVisibleItemIndex)
+    }
     var previousScrollOffset by remember(this) {
-        mutableIntStateOf(firstVisibleItemScrollOffset) }
+        mutableIntStateOf(firstVisibleItemScrollOffset)
+    }
     return remember(this) {
         derivedStateOf {
             if (previousIndex != firstVisibleItemIndex) {
@@ -383,7 +381,6 @@ private fun TopicRow(topic: String, expanded: Boolean, onClick: () -> Unit) {
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp)
-                // This `Column` animates its size when its content changes.
                 .animateContentSize()
         ) {
             Row {
@@ -490,12 +487,10 @@ private fun HomeTabIndicator(
     val indicatorRight by transition.animateDp(
         transitionSpec = {
             if (TabPage.Home isTransitioningTo TabPage.Work) {
-                // Indicator moves to the right
-                // Medium stiffness spring for the right edge so it moves faster than the left edge.
+
                 spring(stiffness = Spring.StiffnessMedium)
             } else {
-                // Indicator moves to the left.
-                // Low stiffness spring for the right edge so it moves slower than the left edge.
+
                 spring(stiffness = Spring.StiffnessVeryLow)
             }
         },
@@ -592,22 +587,17 @@ private fun WeatherRow(
  */
 @Composable
 private fun LoadingRow() {
-    // Creates an `InfiniteTransition` that runs infinite child animation values.
     val infiniteTransition = rememberInfiniteTransition(label = "infinite loading")
     val alpha by infiniteTransition.animateFloat(
         initialValue = 0f,
         targetValue = 1f,
-        // `infiniteRepeatable` repeats the specified duration-based `AnimationSpec` infinitely.
         animationSpec = infiniteRepeatable(
-            // The `keyframes` animates the value by specifying multiple timestamps.
             animation = keyframes {
-                // One iteration is 1000 milliseconds.
                 durationMillis = 1000
-                // 0.7f at the middle of an iteration.
+
                 0.7f at 500
             },
-            // When the value finishes animating from 0f to 1f, it repeats by reversing the
-            // animation direction.
+
             repeatMode = RepeatMode.Reverse
         ),
         label = "alpha"
@@ -674,52 +664,50 @@ private fun TaskRow(task: String, onRemove: () -> Unit) {
 private fun Modifier.swipeToDismiss(
     onDismissed: () -> Unit
 ): Modifier = composed {
-    // This `Animatable` stores the horizontal offset for the element.
+
     val offsetX = remember { Animatable(0f) }
     pointerInput(Unit) {
-        // Used to calculate a settling position of a fling animation.
+
         val decay = splineBasedDecay<Float>(this)
-        // Wrap in a coroutine scope to use suspend functions for touch events and animation.
+
         coroutineScope {
             while (true) {
-                // Wait for a touch down event.
+
                 val pointerId = awaitPointerEventScope { awaitFirstDown().id }
-                // Interrupt any ongoing animation.
+
                 offsetX.stop()
-                // Prepare for drag events and record velocity of a fling.
+
                 val velocityTracker = VelocityTracker()
-                // Wait for drag events.
+
                 awaitPointerEventScope {
                     horizontalDrag(pointerId) { change ->
-                        // Record the position after offset
+
                         val horizontalDragOffset = offsetX.value + change.positionChange().x
                         launch {
-                            // Overwrite the `Animatable` value while the element is dragged.
+
                             offsetX.snapTo(horizontalDragOffset)
                         }
-                        // Record the velocity of the drag.
+
                         velocityTracker.addPosition(change.uptimeMillis, change.position)
-                        // Consume the gesture event, not passed to external
                         if (change.positionChange() != Offset.Zero) change.consume()
                     }
                 }
-                // Dragging finished. Calculate the velocity of the fling.
+
                 val velocity = velocityTracker.calculateVelocity().x
-                // Calculate where the element eventually settles after the fling animation.
+
                 val targetOffsetX = decay.calculateTargetValue(offsetX.value, velocity)
-                // The animation should end as soon as it reaches these bounds.
+
                 offsetX.updateBounds(
                     lowerBound = -size.width.toFloat(),
                     upperBound = size.width.toFloat()
                 )
                 launch {
                     if (targetOffsetX.absoluteValue <= size.width) {
-                        // Not enough velocity; Slide back to the default position.
                         offsetX.animateTo(targetValue = 0f, initialVelocity = velocity)
                     } else {
-                        // Enough velocity to slide away the element to the edge.
+
                         offsetX.animateDecay(velocity, decay)
-                        // The element was swiped away.
+
                         onDismissed()
                     }
                 }
